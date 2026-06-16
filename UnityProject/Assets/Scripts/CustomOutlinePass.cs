@@ -4,6 +4,8 @@ using UnityEngine.Rendering;
 
 public class CustomOutlinePass : ScriptableRenderPass
 {
+    private ProfilingSampler m_ProfilingSampler = new ProfilingSampler("Outline_Optimization_Test");
+
     private Material m_OutlineMaterial;
     private RTHandle m_CameraColorTarget;
     private RTHandle m_TemporaryColorTexture;
@@ -34,9 +36,15 @@ public class CustomOutlinePass : ScriptableRenderPass
 
         CommandBuffer cmd = CommandBufferPool.Get("CustomOutlinePass");
 
-        // 执行屏幕空间后处理：原图 -> (Shader 描边运算) -> 临时 RT -> 原图
-        Blitter.BlitCameraTexture(cmd, m_CameraColorTarget, m_TemporaryColorTexture, m_OutlineMaterial, 0);
-        Blitter.BlitCameraTexture(cmd, m_TemporaryColorTexture, m_CameraColorTarget);
+        using (new ProfilingScope(cmd, m_ProfilingSampler))
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                // 执行屏幕空间后处理：原图 -> (Shader 描边运算) -> 临时 RT -> 原图
+                Blitter.BlitCameraTexture(cmd, m_CameraColorTarget, m_TemporaryColorTexture, m_OutlineMaterial, 0);
+                Blitter.BlitCameraTexture(cmd, m_TemporaryColorTexture, m_CameraColorTarget);
+            }
+        }
 
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
